@@ -1,0 +1,19 @@
+<html>
+    <head>
+       <script src="./puglin.js"></script>
+    </head>
+    <body>
+        <div id="content">
+           1232232
+        </div>
+        <a href="./" id="goto">goto</a>
+        <button onclick="open_dialog('./sub.html','test2',600,480,false)">打开</button>
+        <button onclick="excute_native_method('shutdown')">重启计算机</button>
+    </body>
+    <script>
+         function changedom(str){
+            document.getElementById("content").innerText = str;  
+            messagebox("你好","这是内容123ab");
+         }
+    </script>
+</html>
