@@ -2522,13 +2522,13 @@ public:
 		//if (ui_thread.joinable()) {
 		//	ui_thread.detach();
 		//}
+		js_eval_lock.lock();
 		if (js_eval_thread.joinable()) {
 			js_eval_thread.detach();
 		}
-		js_eval_lock.lock();
 		stop_eval_js = true;
-		js_eval_lock.unlock();
 		child_ui_manager.clear();
+		js_eval_lock.unlock();
 	}
 
 
