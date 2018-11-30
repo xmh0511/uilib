@@ -1,3 +1,26 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2017 Serge Zaitsev
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 #ifndef WEBVIEW_H
 #define WEBVIEW_H
 #include <thread>
@@ -2300,6 +2323,8 @@ private:
 	static std::map<std::string, std::function<void(webUI&,const xmh::json&)>> public_method_handler;
 	std::size_t child_id = 0;
 public:
+
+public:
 	webUI() = default;
 	webUI(const std::string& title, const std::string& url, std::size_t width, std::size_t height, bool is_resizable) :m_title(title), m_url(url), m_width(width), m_height(height), m_is_resizable(is_resizable)
 	{
@@ -2404,6 +2429,11 @@ public:
 		parent = ptr;
 	}
 
+	std::shared_ptr<struct webview> get_webview()
+	{
+		return _webview;
+	}
+
 	webUI* const get_parent_handler()
 	{
 		return parent;
@@ -2420,6 +2450,7 @@ public:
 	bool create()
 	{
 		_webview = std::make_shared<struct webview>();
+		memset(&(*_webview), 0, sizeof(*_webview));
 		_webview->title = m_title.c_str();
 		_webview->url = m_url.c_str();
 		_webview->width = m_width;
@@ -2451,7 +2482,7 @@ public:
 	}
 
 
-	bool close()
+	void close()
 	{
 		if (_webview != nullptr) {
 			webview_exit(&(*_webview));
@@ -2467,8 +2498,8 @@ public:
 			if (!is_running_js_eval_thread) {
 				js_eval_thread = std::thread([this]() {
 					while (!stop_eval_js) {
+						js_eval_lock.lock();
 						if (webloadok) {
-							js_eval_lock.lock();
 							if (!js_eval_queue.empty()) {
 								std::string order_str;
 								order_str = std::to_string(js_order);
@@ -2479,10 +2510,11 @@ public:
 									webview_eval(w, (char const*)arg);
 								}, &(js_eval_map[order_str][0]));
 							}
-							js_eval_lock.unlock();
 						}
+						js_eval_lock.unlock();
 					}
 				});
+				js_eval_thread.detach();
 				is_running_js_eval_thread = true;
 				//js_eval_thread.detach();
 			}
@@ -2494,7 +2526,7 @@ public:
 
 	void keep_alive()
 	{
-		while (webview_loop(&(*_webview), false) == 0);
+		while (webview_loop(&(*_webview), true) == 0);
 	}
 
 	~webUI()
@@ -2503,9 +2535,10 @@ public:
 		//	ui_thread.detach();
 		//}
 		js_eval_lock.lock();
-		if (js_eval_thread.joinable()) {
-			js_eval_thread.detach();
-		}
+		close();
+		//if (js_eval_thread.joinable()) {
+		//	js_eval_thread.detach();
+		//}]
 		stop_eval_js = true;
 		child_ui_manager.clear();
 		js_eval_lock.unlock();
