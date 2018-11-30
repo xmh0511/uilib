@@ -2318,9 +2318,10 @@ private:
 	std::size_t js_order = 0;
 	std::map<std::string, std::function<void(const xmh::json&)>> method_handler;
 	bool stop_eval_js = false;
-	std::vector<std::shared_ptr<std::thread>> child_ui_manager;
+	std::map<std::size_t,std::shared_ptr<std::thread>> child_ui_manager;
 	webUI* parent = nullptr;
 	static std::map<std::string, std::function<void(webUI&,const xmh::json&)>> public_method_handler;
+	std::size_t child_id = 0;
 public:
 	webUI() = default;
 	webUI(const std::string& title, const std::string& url, std::size_t width, std::size_t height, bool is_resizable) :m_title(title), m_url(url), m_width(width), m_height(height), m_is_resizable(is_resizable)
@@ -2352,7 +2353,8 @@ public:
 		};
 
 		method_handler["opennewdialog"] = [this](jsParams params) {
-			auto ui = std::make_shared<std::thread>([this, params]() {
+			auto id = child_id++;
+			auto ui = std::make_shared<std::thread>([this, params, id]() {
 				auto url = params[0].get<std::string>();
 				auto title = params[1].get<std::string>();
 				auto width = params[2].get<int>();
@@ -2361,11 +2363,12 @@ public:
 				webUI child(title, url,width,height, is_resizeable);
 				child.set_parent_handler(this);
 				child.create();
-				child.eval_js("changedom('222')");
+				//child.eval_js("changedom('222')");
 				child.keep_alive();
+				child_ui_manager.erase(id);
 			});
 			ui->detach();
-			child_ui_manager.push_back(ui);
+			child_ui_manager.insert(std::make_pair(id, ui));
 		};
 	}
 	void set_title(const std::string& title)
